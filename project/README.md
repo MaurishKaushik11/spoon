@@ -142,13 +142,16 @@ npm run build && vercel --prod
 
 ## 🚧 Future Enhancements
 
-- Server-side API proxy for enhanced security
-- User authentication and project saving
-- Batch analysis capabilities
-- Custom AI model fine-tuning
-- Integration with more version control systems
-- Export functionality (PDF reports, JSON data)
-- Real-time collaboration features
+- **OCR Integration**: Add Tesseract.js for scanned PDF text extraction
+- **Server-side API proxy** for enhanced security
+- **User authentication** and project saving
+- **Batch analysis** capabilities
+- **Custom AI model** fine-tuning
+- **Integration** with more version control systems (GitLab, Bitbucket)
+- **Export functionality** (PDF reports, JSON data)
+- **Real-time collaboration** features
+- **Advanced PDF parsing** with table and image extraction
+- **Multi-language support** for international documents
 
 ## 📝 License
 
@@ -168,4 +171,4 @@ For questions or issues, please open a GitHub issue or contact the development t
 
 ---
 
-Built with ❤️ for the C4E internship application by [Your Name]
+Built with ❤️ for the C4E internship application by Maurish Kaushik

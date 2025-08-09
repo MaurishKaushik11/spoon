@@ -226,6 +226,24 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({ result }) 
             </div>
           )}
 
+          {/* Document Analysis Summary */}
+          {result.type === 'document' && result.documentContent && (
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-600">
+              <h3 className="text-lg font-semibold text-gray-200 mb-4">Document Analysis Summary</h3>
+              <div className="bg-gray-900/50 rounded-lg p-4">
+                <div className="text-gray-300 text-sm space-y-2">
+                  <div><strong>File:</strong> {result.fileName}</div>
+                  <div><strong>Type:</strong> {result.documentContent.includes('Professional Resume/CV') ? 'Professional Resume/CV' : 
+                                                result.documentContent.includes('Research Report') ? 'Research Report/Analysis' :
+                                                result.documentContent.includes('Project Proposal') ? 'Project Proposal/Plan' :
+                                                result.documentContent.includes('Technical Manual') ? 'Technical Manual/Guide' : 'Technical Document'}</div>
+                  <div><strong>Size:</strong> {result.documentContent.match(/(\d+)KB/)?.[1] || 'Unknown'}KB</div>
+                  <div><strong>Analysis Method:</strong> AI-powered content analysis based on document metadata and structure patterns</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recommendation */}
           <div className="bg-gradient-to-r from-purple-800/20 to-blue-800/20 rounded-xl p-6 border border-purple-500/20">
             <div className="flex items-center space-x-3 mb-3">

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Processing Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: #fff; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .upload-area { border: 2px dashed #666; padding: 20px; text-align: center; margin: 20px 0; }
+        .results { background: #2a2a2a; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .log { background: #333; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Processing Debug Test</h1>
+        <p>This tool helps debug PDF processing issues by testing the extraction directly.</p>
+        
+        <div class="upload-area">
+            <input type="file" id="pdfFile" accept=".pdf" />
+            <br>
+            <button onclick="testPDFProcessing()">Test PDF Processing</button>
+        </div>
+        
+        <div id="logs" class="results">
+            <h3>Processing Logs:</h3>
+            <div id="logContainer"></div>
+        </div>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>Extraction Results:</h3>
+            <div id="resultContainer"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/pdfjs-dist@5.4.54/build/pdf.min.js"></script>
+    <script>
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log';
+            logDiv.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            logContainer.appendChild(logDiv);
+            console.log(message);
+        }
+
+        async function testPDFProcessing() {
+            const fileInput = document.getElementById('pdfFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('Please select a PDF file first');
+                return;
+            }
+            
+            log('Starting PDF processing test...');
+            log('File: ' + file.name + ' (' + Math.round(file.size / 1024) + 'KB)');
+            
+            try {
+                // Set up PDF.js worker
+                const workerSrc = 'https://unpkg.com/pdfjs-dist@5.4.54/build/pdf.worker.min.js';
+                pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+                log('PDF.js worker configured: ' + workerSrc);
+                
+                // Convert file to array buffer
+                log('Converting file to array buffer...');
+                const arrayBuffer = await file.arrayBuffer();
+                log('Array buffer created: ' + arrayBuffer.byteLength + ' bytes');
+                
+                // Load PDF document
+                log('Loading PDF document...');
+                const pdf = await pdfjsLib.getDocument({ 
+                    data: arrayBuffer,
+                    verbosity: 0
+                }).promise;
+                
+                log('PDF loaded successfully. Pages: ' + pdf.numPages);
+                
+                let fullText = '';
+                const maxPages = Math.min(pdf.numPages, 5); // Test first 5 pages
+                
+                for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                    try {
+                        log('Processing page ' + pageNum + '/' + maxPages + '...');
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        
+                        let pageText = '';
+                        if (textContent && textContent.items) {
+                            textContent.items.forEach((item) => {
+                                if (item && item.str && typeof item.str === 'string') {
+                                    pageText += item.str + ' ';
+                                }
+                            });
+                        }
+                        
+                        if (pageText.trim()) {
+                            fullText += pageText + '\n';
+                            log('Page ' + pageNum + ' processed: ' + pageText.length + ' characters');
+                        } else {
+                            log('Page ' + pageNum + ' contains no extractable text');
+                        }
+                    } catch (pageError) {
+                        log('Error processing page ' + pageNum + ': ' + pageError.message);
+                    }
+                }
+                
+                log('Extraction complete. Total text length: ' + fullText.length + ' characters');
+                
+                // Show results
+                const resultsDiv = document.getElementById('results');
+                const resultContainer = document.getElementById('resultContainer');
+                
+                if (fullText.trim()) {
+                    resultContainer.innerHTML = `
+                        <h4>Extracted Text Preview (first 1000 characters):</h4>
+                        <div style="background: #444; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
+                            ${fullText.substring(0, 1000)}${fullText.length > 1000 ? '\n\n... [truncated]' : ''}
+                        </div>
+                        <p><strong>Total characters extracted:</strong> ${fullText.length}</p>
+                        <p><strong>Word count:</strong> ${fullText.split(/\s+/).filter(word => word.length > 0).length}</p>
+                        <p><strong>Status:</strong> ✅ Text extraction successful</p>
+                    `;
+                    log('✅ PDF processing successful!');
+                } else {
+                    resultContainer.innerHTML = `
+                        <p><strong>Status:</strong> ❌ No text could be extracted from this PDF</p>
+                        <p>This might be a scanned PDF or contain only images. The PDF might need OCR processing.</p>
+                    `;
+                    log('❌ No text extracted - PDF might be scanned or image-based');
+                }
+                
+                resultsDiv.style.display = 'block';
+                
+            } catch (error) {
+                log('❌ PDF processing failed: ' + error.message);
+                console.error('Full error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

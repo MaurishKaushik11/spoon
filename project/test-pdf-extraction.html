@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Extraction Test</title>
+    <script src="https://unpkg.com/pdfjs-dist@5.4.54/build/pdf.min.js"></script>
+</head>
+<body>
+    <h1>PDF Extraction Test</h1>
+    <input type="file" id="pdfInput" accept=".pdf">
+    <div id="output"></div>
+
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@5.4.54/build/pdf.worker.min.js';
+
+        document.getElementById('pdfInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            console.log('Testing PDF extraction for:', file.name);
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Processing PDF...</p>';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                console.log('Array buffer created:', arrayBuffer.byteLength, 'bytes');
+
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                console.log('PDF loaded successfully. Pages:', pdf.numPages);
+
+                let fullText = '';
+                for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 3); pageNum++) {
+                    try {
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        
+                        let pageText = '';
+                        textContent.items.forEach(item => {
+                            if (item.str) {
+                                pageText += item.str + ' ';
+                            }
+                        });
+                        
+                        fullText += `--- PAGE ${pageNum} ---\n${pageText}\n\n`;
+                        console.log(`Page ${pageNum} extracted:`, pageText.length, 'characters');
+                    } catch (pageError) {
+                        console.error(`Error on page ${pageNum}:`, pageError);
+                    }
+                }
+
+                output.innerHTML = `
+                    <h2>Extraction Results:</h2>
+                    <p><strong>File:</strong> ${file.name}</p>
+                    <p><strong>Size:</strong> ${Math.floor(file.size / 1024)}KB</p>
+                    <p><strong>Pages:</strong> ${pdf.numPages}</p>
+                    <p><strong>Extracted Text Length:</strong> ${fullText.length} characters</p>
+                    <h3>Extracted Content:</h3>
+                    <pre style="background: #f5f5f5; padding: 10px; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${fullText}</pre>
+                `;
+
+            } catch (error) {
+                console.error('PDF extraction failed:', error);
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

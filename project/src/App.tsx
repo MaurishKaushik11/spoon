@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'react-hot-toast';
-import { Brain, Github, FileText, Sparkles } from 'lucide-react';
+import { Brain, Github, FileText, Sparkles, Settings, Check } from 'lucide-react';
 
 import { GitHubInput } from './components/GitHubInput';
 import { FileUpload } from './components/FileUpload';
@@ -10,19 +10,33 @@ import { InsightsDashboard } from './components/InsightsDashboard';
 
 import { GitHubService } from './services/github';
 import { DocumentService } from './services/document';
-import { AIService } from './services/ai';
+import { AIService, AIProvider } from './services/ai';
 import { AnalysisResult } from './types';
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key-here';
+// AI Configuration from environment variables
+const AI_CONFIG = {
+  openai: import.meta.env.VITE_OPENAI_API_KEY || '',
+  anthropic: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
+  gemini: import.meta.env.VITE_GEMINI_API_KEY || '',
+  groq: import.meta.env.VITE_GROQ_API_KEY || '',
+  huggingface: import.meta.env.VITE_HUGGINGFACE_API_KEY || ''
+};
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [activeTab, setActiveTab] = useState<'github' | 'document'>('github');
+  const [aiProvider, setAiProvider] = useState<AIProvider>('groq');
+  const [showAIConfig, setShowAIConfig] = useState(false);
 
   const gitHubService = new GitHubService();
   const documentService = new DocumentService();
-  const aiService = new AIService(OPENAI_API_KEY);
+  
+  // Create AI service with current provider
+  const getAIService = () => {
+    const apiKey = AI_CONFIG[aiProvider];
+    return new AIService(apiKey, aiProvider);
+  };
 
   const handleGitHubAnalysis = async (url: string) => {
     setIsLoading(true);
@@ -42,9 +56,10 @@ function App() {
         gitHubService.getReadme(parsed.owner, parsed.repo).catch(() => ''),
       ]);
 
-      toast.loading('Analyzing with AI...', { id: 'analysis' });
+      toast.loading(`Analyzing with ${aiProvider.toUpperCase()} AI...`, { id: 'analysis' });
 
       const content = `${repoData.description || ''}\n\n${readme}`;
+      const aiService = getAIService();
       const aiInsights = await aiService.analyzeContent(content, 'github', repoData);
 
       const analysisResult: AnalysisResult = {
@@ -82,13 +97,19 @@ function App() {
         content = await documentService.parseTextFile(file);
       }
 
+      console.log('Extracted content length:', content.length);
+      console.log('Content preview:', content.substring(0, 500));
+      console.log('Content contains ACTUAL EXTRACTED CONTENT:', content.includes('ACTUAL EXTRACTED CONTENT:'));
+
       if (!content.trim()) {
         throw new Error('No content found in document');
       }
 
-      toast.loading('Analyzing with AI...', { id: 'analysis' });
+      toast.loading(`Analyzing with ${aiProvider.toUpperCase()} AI...`, { id: 'analysis' });
 
+      const aiService = getAIService();
       const aiInsights = await aiService.analyzeContent(content, 'document');
+      console.log('AI insights:', aiInsights);
 
       const analysisResult: AnalysisResult = {
         type: 'document',
@@ -131,7 +152,7 @@ function App() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <div className="flex items-center justify-center space-x-3 mb-4">
+          <div className="flex items-center justify-center space-x-3 mb-4 relative">
             <motion.div
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -142,11 +163,78 @@ function App() {
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
               Spoon
             </h1>
+            
+            {/* AI Configuration Button */}
+            <button
+              onClick={() => setShowAIConfig(!showAIConfig)}
+              className="absolute right-0 p-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-600 transition-all duration-200"
+              title="AI Configuration"
+            >
+              <Settings className="w-5 h-5 text-gray-300" />
+            </button>
           </div>
+          
           <p className="text-xl text-gray-300 mb-2">AI-Powered Project Insights Generator</p>
-          <p className="text-gray-400">
+          <p className="text-gray-400 mb-4">
             Analyze GitHub repositories and documents to get instant insights, use cases, and technical assessments
           </p>
+          
+          {/* Current AI Provider Display */}
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <span>Powered by:</span>
+            <span className="px-2 py-1 bg-gray-800/50 rounded-md border border-gray-600 text-gray-300 font-medium">
+              {aiProvider.toUpperCase()}
+            </span>
+            {AI_CONFIG[aiProvider] && !AI_CONFIG[aiProvider].includes('your-') && !AI_CONFIG[aiProvider].includes('abcd') ? (
+              <Check className="w-4 h-4 text-green-400" />
+            ) : (
+              <span className="text-orange-400 text-xs">(Enhanced Content Analysis)</span>
+            )}
+          </div>
+          
+          {/* AI Configuration Panel */}
+          <AnimatePresence>
+            {showAIConfig && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mt-6 p-4 bg-gray-800/30 backdrop-blur-sm border border-gray-600 rounded-xl max-w-md mx-auto"
+              >
+                <h3 className="text-lg font-semibold text-gray-200 mb-3">AI Provider Configuration</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {Object.entries(AI_CONFIG).map(([provider, apiKey]) => (
+                    <button
+                      key={provider}
+                      onClick={() => setAiProvider(provider as AIProvider)}
+                      className={`p-3 rounded-lg border transition-all duration-200 text-left ${
+                        aiProvider === provider
+                          ? 'bg-purple-600/20 border-purple-500 text-purple-200'
+                          : 'bg-gray-700/30 border-gray-600 text-gray-300 hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{provider.toUpperCase()}</div>
+                          <div className="text-xs text-gray-400">
+                            {apiKey && !apiKey.includes('your-') && !apiKey.includes('abcd') ? (
+                              <span className="text-green-400">✓ API Key Configured</span>
+                            ) : (
+                              <span className="text-orange-400">⚠ Using Enhanced Content Analysis</span>
+                            )}
+                          </div>
+                        </div>
+                        {aiProvider === provider && <Check className="w-5 h-5 text-purple-400" />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-gray-400">
+                  Configure API keys in your .env file (VITE_OPENAI_API_KEY, VITE_ANTHROPIC_API_KEY, etc.)
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         <AnimatePresence mode="wait">
